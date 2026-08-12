@@ -99,6 +99,7 @@ const G = {
   drops: 0, distM: 0, moves: 0,
   phase: 'title', bonus: 20,
   difficulty: 'normal',
+  currentSessionId: null,
 
   cfg() { return DIFF[this.difficulty]; },
 
@@ -115,6 +116,7 @@ const G = {
     Sound.unlock();
     this.drops = 0; this.distM = 0; this.moves = 0;
     milestonesShown = {};
+    this.currentSessionId = Analytics.startSession(this.difficulty);
     this.phase = 'runner';
     showScreen('phase1-screen');
     Runner.init();
@@ -140,6 +142,7 @@ const G = {
     const bonus = solved ? puzzleTime * 5 : 0;
     const total = this.drops + bonus;
     checkMilestones(total);
+    Analytics.endSession(this.currentSessionId, solved, puzzleTime, this.distM, this.moves);
     document.getElementById('f-drops').textContent = total;
     document.getElementById('f-dist').textContent = this.distM + 'm';
     document.getElementById('f-moves').textContent = this.moves;
@@ -159,6 +162,7 @@ const G = {
     document.getElementById('over-overlay').classList.remove('active');
     this.drops = 0; this.distM = 0; this.moves = 0;
     milestonesShown = {};
+    this.currentSessionId = null;
     this.phase = 'title';
     showScreen('title-screen');
   }
