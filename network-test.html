@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Network Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #f0f0f0; }
+    .box { background: white; padding: 20px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #2BA4DB; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 10px; border-radius: 4px; max-height: 300px; overflow: auto; }
+    .ok { border-left-color: #4EC9B0; }
+    .error { border-left-color: #ff6b6b; }
+  </style>
+</head>
+<body>
+  <h1>📡 Network Test - Check All Files</h1>
+  
+  <div class="box">
+    <h2>Files to Load</h2>
+    <pre id="status">Testing...</pre>
+  </div>
+
+  <script>
+    const files = [
+      'analytics.js',
+      'game.js',
+      'runner.js',
+      'puzzle.js',
+      'sound.js',
+      'style.css'
+    ];
+
+    const baseUrl = location.origin + location.pathname.split('/').slice(0, -1).join('/') + '/';
+    let html = '';
+
+    Promise.all(files.map(file => {
+      const url = baseUrl + file;
+      return fetch(url, { method: 'HEAD' })
+        .then(r => {
+          const status = r.ok ? '✅ 200' : `❌ ${r.status}`;
+          html += `${status} ${file}\n`;
+        })
+        .catch(e => {
+          html += `❌ FAIL ${file} - ${e.message}\n`;
+        });
+    })).then(() => {
+      document.getElementById('status').textContent = html || 'No results';
+    });
+  </script>
+</body>
+</html>
