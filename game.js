@@ -142,7 +142,19 @@ const G = {
     const bonus = solved ? puzzleTime * 5 : 0;
     const total = this.drops + bonus;
     checkMilestones(total);
-    Analytics.endSession(this.currentSessionId, solved, puzzleTime, this.distM, this.moves);
+    
+    // Save analytics
+    try {
+      if (typeof Analytics !== 'undefined' && Analytics.endSession) {
+        Analytics.endSession(this.currentSessionId, solved, puzzleTime, this.distM, this.moves);
+        console.log('✅ Analytics saved:', { sessionId: this.currentSessionId, solved, puzzleTime });
+      } else {
+        console.warn('⚠️ Analytics not available');
+      }
+    } catch (e) {
+      console.error('❌ Analytics error:', e);
+    }
+    
     document.getElementById('f-drops').textContent = total;
     document.getElementById('f-dist').textContent = this.distM + 'm';
     document.getElementById('f-moves').textContent = this.moves;
