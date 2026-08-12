@@ -199,10 +199,26 @@
   <script src="analytics.js"></script>
   <script>
     function formatStats() {
+      console.log('📊 formatStats() called');
+      console.log('Analytics object:', typeof Analytics, Analytics);
+      
+      if (!Analytics || !Analytics.getStats) {
+        console.error('❌ Analytics not loaded!');
+        document.getElementById('stats-container').innerHTML = `
+          <div class="no-data">
+            <p>❌ Error: Analytics script not loaded properly</p>
+            <p>Try refreshing the page (F5)</p>
+          </div>
+        `;
+        return;
+      }
+      
       const stats = Analytics.getStats();
+      console.log('📊 Stats:', stats);
       const hasData = stats.totalPlays > 0;
 
       if (!hasData) {
+        console.log('⚠️ No data found');
         document.getElementById('stats-container').innerHTML = `
           <div class="no-data">
             <p>No gameplay data yet. Play some games to see your stats!</p>
@@ -211,6 +227,8 @@
         `;
         return;
       }
+      
+      console.log('✅ Data found, rendering...');
 
       let html = `
         <div class="stats-grid">
@@ -283,8 +301,21 @@
       }
     }
 
-    // Initial load
-    formatStats();
+    // Initial load - wait for analytics.js to load
+    if (typeof Analytics !== 'undefined') {
+      console.log('✅ Analytics loaded, calling formatStats()');
+      formatStats();
+    } else {
+      console.warn('⚠️ Waiting for Analytics to load...');
+      setTimeout(() => {
+        if (typeof Analytics !== 'undefined') {
+          console.log('✅ Analytics now loaded');
+          formatStats();
+        } else {
+          console.error('❌ Analytics failed to load after timeout');
+        }
+      }, 1000);
+    }
   </script>
 </body>
 </html>
