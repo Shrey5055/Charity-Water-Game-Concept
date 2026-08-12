@@ -199,26 +199,11 @@
   <script src="analytics.js"></script>
   <script>
     function formatStats() {
-      console.log('📊 formatStats() called');
-      console.log('Analytics object:', typeof Analytics, Analytics);
+      // Read directly from localStorage
+      const storageKey = 'everyDropCounts_analytics';
+      const rawData = localStorage.getItem(storageKey);
       
-      if (!Analytics || !Analytics.getStats) {
-        console.error('❌ Analytics not loaded!');
-        document.getElementById('stats-container').innerHTML = `
-          <div class="no-data">
-            <p>❌ Error: Analytics script not loaded properly</p>
-            <p>Try refreshing the page (F5)</p>
-          </div>
-        `;
-        return;
-      }
-      
-      const stats = Analytics.getStats();
-      console.log('📊 Stats:', stats);
-      const hasData = stats.totalPlays > 0;
-
-      if (!hasData) {
-        console.log('⚠️ No data found');
+      if (!rawData) {
         document.getElementById('stats-container').innerHTML = `
           <div class="no-data">
             <p>No gameplay data yet. Play some games to see your stats!</p>
@@ -227,22 +212,44 @@
         `;
         return;
       }
-      
-      console.log('✅ Data found, rendering...');
+
+      let data;
+      try {
+        data = JSON.parse(rawData);
+      } catch (e) {
+        document.getElementById('stats-container').innerHTML = `
+          <div class="no-data">
+            <p>❌ Error: Data is corrupted</p>
+          </div>
+        `;
+        return;
+      }
+
+      const hasData = data.totalSessions > 0;
+
+      if (!hasData) {
+        document.getElementById('stats-container').innerHTML = `
+          <div class="no-data">
+            <p>No gameplay data yet. Play some games to see your stats!</p>
+            <p style="margin-top: 20px;"><a href="index.html" style="color: #2BA4DB;">← Play now</a></p>
+          </div>
+        `;
+        return;
+      }
 
       let html = `
         <div class="stats-grid">
           <div class="stat-card success">
             <div class="stat-label">Total Plays</div>
-            <div class="stat-value">${stats.totalPlays}</div>
+            <div class="stat-value">${data.totalSessions}</div>
           </div>
           <div class="stat-card success">
             <div class="stat-label">Completions</div>
-            <div class="stat-value">${stats.totalCompleted}</div>
+            <div class="stat-value">${data.completedSessions}</div>
           </div>
           <div class="stat-card warning">
             <div class="stat-label">Completion Rate</div>
-            <div class="stat-value">${stats.completionRate}%</div>
+            <div class="stat-value">${data.totalSessions > 0 ? Math.round((data.completedSessions / data.totalSessions) * 100) : 0}%</div>
           </div>
         </div>
       `;
@@ -250,7 +257,9 @@
       // Difficulty breakdown
       const difficulties = ['easy', 'normal', 'hard'];
       difficulties.forEach(diff => {
-        const d = stats.byDifficulty[diff];
+        const d = data.byDifficulty[diff];
+        const avgTime = d.completions > 0 ? Math.round(d.totalTime / d.completions) : 0;
+        const completionRate = d.plays > 0 ? Math.round((d.completions / d.plays) * 100) : 0;
         const icon = diff === 'easy' ? '🟢' : diff === 'normal' ? '🟡' : '🔴';
         
         html += `
@@ -269,11 +278,11 @@
               </div>
               <div class="diff-stat">
                 <div class="diff-stat-label">Completion Rate</div>
-                <div class="diff-stat-value">${d.completionRate}%</div>
+                <div class="diff-stat-value">${completionRate}%</div>
               </div>
               <div class="diff-stat">
                 <div class="diff-stat-label">Avg Time</div>
-                <div class="diff-stat-value">${d.averageTime}</div>
+                <div class="diff-stat-value">${avgTime}s</div>
               </div>
             </div>
           </div>
@@ -284,11 +293,45 @@
     }
 
     function exportJSON() {
-      Analytics.exportJSON();
+      const storageKey = 'everyDropCounts_analytics';
+      const data = localStorage.getItem(storageKey);
+      if (!data) {
+        alert('No data to export');
+        return;
+      }
+      const json = JSON.stringify(JSON.parse(data), null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `every-drop-counts-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
     function exportCSV() {
-      Analytics.exportCSV();
+      const storageKey = 'everyDropCounts_analytics';
+      const rawData = localStorage.getItem(storageKey);
+      if (!rawData) {
+        alert('No data to export');
+        return;
+      }
+      const data = JSON.parse(rawData);
+      const sessions = data.sessions;
+      
+      let csv = 'Date,Difficulty,Completed,Puzzle Time (s),Distance (m),Moves\n';
+      sessions.forEach(s => {
+        const date = new Date(s.startTime).toLocaleDateString();
+        csv += `${date},${s.difficulty},${s.completed ? 'Yes' : 'No'},${s.puzzleTime},${s.distM},${s.moves}\n`;
+      });
+      
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `every-drop-counts-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
     }
 
     function refreshStats() {
@@ -296,26 +339,14 @@
     }
 
     function clearData() {
-      if (Analytics.clearData()) {
+      if (confirm('Clear all analytics data?')) {
+        localStorage.removeItem('everyDropCounts_analytics');
         formatStats();
       }
     }
 
-    // Initial load - wait for analytics.js to load
-    if (typeof Analytics !== 'undefined') {
-      console.log('✅ Analytics loaded, calling formatStats()');
-      formatStats();
-    } else {
-      console.warn('⚠️ Waiting for Analytics to load...');
-      setTimeout(() => {
-        if (typeof Analytics !== 'undefined') {
-          console.log('✅ Analytics now loaded');
-          formatStats();
-        } else {
-          console.error('❌ Analytics failed to load after timeout');
-        }
-      }, 1000);
-    }
+    // Initial load
+    formatStats();
   </script>
 </body>
 </html>
